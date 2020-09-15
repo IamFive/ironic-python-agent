@@ -18,6 +18,7 @@ import mock
 from oslo_concurrency import processutils
 from oslo_config import cfg
 
+from ironic_python_agent import errors
 from ironic_python_agent import hardware
 from ironic_python_agent.hardware_managers import cna
 from ironic_python_agent.tests.unit import base
@@ -147,7 +148,11 @@ class TestIntelCnaHardwareManager(base.IronicAgentTest):
         mock_super_collect.return_value = returned_lldp_data
         with mock.patch.object(cna, '_disable_embedded_lldp_agent_in_cna_card',
                                autospec=True):
-            result = self.hardware.collect_lldp_data(iface_names)
+            message = (
+                "Re-dispatch collect_lldp_data intent to hardware managers "
+                "chain after cna card lldp agent is disabled.")
+            self.assertRaisesRegex(
+                errors.IncompatibleHardwareMethodError, message,
+                self.hardware.collect_lldp_data, iface_names)
             mock_super_collect.assert_called_once_with(self.hardware,
                                                        iface_names)
-            self.assertEqual(returned_lldp_data, result)

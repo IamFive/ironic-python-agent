@@ -18,6 +18,7 @@ from oslo_concurrency import processutils
 from oslo_config import cfg
 from oslo_log import log
 
+from ironic_python_agent import errors
 from ironic_python_agent import hardware
 from ironic_python_agent import utils
 
@@ -69,7 +70,7 @@ def _disable_embedded_lldp_agent_in_cna_card():
                     .format(str(failed_dirs).strip('[]')))
 
 
-class IntelCnaHardwareManager(hardware.GenericHardwareManager):
+class IntelCnaHardwareManager(hardware.HardwareManager):
     HARDWARE_MANAGER_NAME = 'IntelCnaHardwareManager'
     HARDWARE_MANAGER_VERSION = '1.0'
 
@@ -86,12 +87,18 @@ class IntelCnaHardwareManager(hardware.GenericHardwareManager):
 
         On Intel CNA cards, in order to make LLDP info collecting possible,
         the embedded LLDP agent, which runs inside that card, needs to be
-        turned off. Then we can give the control back to the super class.
+        turned off. Then we can dispatch "collect_lldp_data" intent to the
+        hardware managers chain.
 
         :param interface_names: list of names of node's interfaces.
-        :return: a dict, containing the lldp data from every interface.
+        :raises: IncompatibleHardwareMethodError exception after disable
+        embedded lldp agent in cna card.
         """
 
         _disable_embedded_lldp_agent_in_cna_card()
-        return super(IntelCnaHardwareManager, self).collect_lldp_data(
-            interface_names)
+        # NOTE(Qianbiao.NG): raise error to give other manager a chance to
+        # finish the collect lldp data logic. Currently, the collect-lldp-data
+        # will be handled by GenericHardwareManager
+        message = ("Re-dispatch collect_lldp_data intent to hardware managers "
+                   "chain after cna card lldp agent is disabled.")
+        raise errors.IncompatibleHardwareMethodError(message)
